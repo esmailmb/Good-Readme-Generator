@@ -213,12 +213,12 @@ function generateHTML(info) {
            border-radius: 6px;
            }
            .photo-header img {
-           width: 250px;
-           height: 250px;
-           border-radius: 50%;
+           width: 200px;
+           height: 200px;
+           border-radius: 75%;
            object-fit: cover;
            margin-top: -75px;
-           border: 6px solid ${colors[info.color].photoBorderColor};
+           border: 4px solid ${colors[info.color].photoBorderColor};
            box-shadow: rgba(0, 0, 0, 0.3) 4px 1px 20px 4px;
            }
            .photo-header h1, .photo-header h2 {
@@ -232,7 +232,7 @@ function generateHTML(info) {
            width: 100%;
            text-align: center;
            padding: 20px 0;
-           font-size: 1.1em;
+           font-size: 1.5em;
            }
            .nav-link {
            display: inline-block;
