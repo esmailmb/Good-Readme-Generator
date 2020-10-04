@@ -1,377 +1,127 @@
+// External packages
+const inquirer = require('inquirer');
+const fs = require('fs');
+const util = require('util');
 
-const inquirer = require("inquirer");
-const fs = require("fs");
-const conversion = require("phantom-html-to-pdf")();
-const axios = require("axios");
-const pdf = require('html-pdf');
-const util = require("util");
+// Internal modules
+const api = require('./utils/api.js');
+const generateMarkdown = require('./utils/generateMarkdown.js');
 
-function promptUser() {
-  return inquirer.prompt([{
-    type: "input",
-    message: "Enter your GitHub username:",
-    name: "username"
-  }, {
-    type: "list",
-    message: "What's your favorite color?",
-    name: "faveColor",
-    choices: ['red', 'pink', 'green', 'blue']
-  }]);
-}
-
-let readyToConvert = false;
-promptUser()
-  .then(function ({ username, faveColor }) {
-
-    const queryUrl = `https://api.github.com/users/${username}`;
-    axios
-      .get(queryUrl).then(function (res) {
-        console.log(res);
-        info = {
-          color: faveColor,
-          profilePic: res.data.avatar_url,
-          name: res.data.login,
-          location: res.data.location,
-          profileUrl: res.data.html_url,
-          blog: res.data.blog,
-          bio: res.data.bio,
-          company: res.data.company,
-          repos: res.data.public_repos,
-          followers: res.data.followers,
-          following: res.data.following,
+// Inquirer prompts for userResponses
+const questions = [
+    {
+        type: 'input',
+        message: "What is your GitHub username? (No @ needed)",
+        name: 'username',
+        default: 'connietran-dev',
+        validate: function (answer) {
+            if (answer.length < 1) {
+                return console.log("A valid GitHub username is required.");
+            }
+            return true;
         }
-        console.log(info);
+    },
+    {
+        type: 'input',
+        message: "What is the name of your GitHub repo?",
+        name: 'repo',
+        default: 'readme-generator',
+        validate: function (answer) {
+            if (answer.length < 1) {
+                return console.log("A valid GitHub repo is required for a badge.");
+            }
+            return true;
+        }
+    },
+    {
+        type: 'input',
+        message: "What is the title of your project?",
+        name: 'title',
+        default: 'Project Title',
+        validate: function (answer) {
+            if (answer.length < 1) {
+                return console.log("A valid project title is required.");
+            }
+            return true;
+        }
+    },
+    {
+        type: 'input',
+        message: "Write a description of your project.",
+        name: 'description',
+        default: 'Project Description',
+        validate: function (answer) {
+            if (answer.length < 1) {
+                return console.log("A valid project description is required.");
+            }
+            return true;
+        }
+    },
+    {
+        type: 'input',
+        message: "If applicable, describe the steps required to install your project for the Installation section.",
+        name: 'installation'
+    },
+    {
+        type: 'input',
+        message: "Provide instructions and examples of your project in use for the Usage section.",
+        name: 'usage'
+    },
+    {
+        type: 'input',
+        message: "If applicable, provide guidelines on how other developers can contribute to your project.",
+        name: 'contributing'
+    },
+    {
+        type: 'input',
+        message: "If applicable, provide any tests written for your application and provide examples on how to run them.",
+        name: 'tests'
+    },
+    {
+        type: 'list',
+        message: "Choose a license for your project.",
+        choices: ['GNU AGPLv3', 'GNU GPLv3', 'GNU LGPLv3', 'Mozilla Public License 2.0', 'Apache License 2.0', 'MIT License', 'Boost Software License 1.0', 'The Unlicense'],
+        name: 'license'
+    }
+];
 
-        const newQueryUrl = `https://api.github.com/users/${username}/repos`;
-        console.log(newQueryUrl);
-
-        axios.get(newQueryUrl).then(function (res) {
-          let starCount = 0;
-          for (let index = 0; index < res.data.length; index++) {
-            let count = res.data[index].stargazers_count;
-            starCount = starCount + count;
-
-          }
-          console.log("Final star count for all repositories: " + starCount)
-          info.starCount = starCount;
-          const html = generateHTML(info);
-
-          console.log(`${username}.html is ready to convert to PDF`);
-          readyToConvert = true;
-
-          // for testing the HTML file that gets written to disk
-          fs.writeFileSync(`${username}.html`, html);
-
-          // https://www.npmjs.com/package/html-pdf
-          var options = { format: 'landscape' };
-          pdf.create(html, options).toFile(`${username}.pdf`, function (err, res) {
-            if (err) return console.log(err);
-            console.log(res);
-          });
-
-        });
-      });
-    // })
-    //.then(function () {
-
-
-
-
-    // })
-
-    //.then(function () {
-  })
-  .catch(function (err) {
-    console.log(err);
-
-  });
-
-
-function generatePdf(html) {
-  let conversion = convertFactory({
-
-    converterPath: convertFactory.converters.PDF
-
-  });
-
-  conversion({
-    html: html,
-    waitForJs: true,
-    waitForJsVarName: readyToConvert,
-  },
-    function (err, result) {
-      if (err) {
-        return console.log(err);
-      }
-
-      result.stream.pipe(fs.createWriteStream(`${username}.pdf`));
-
-      conversion.kill();
-
-      console.log(`${username}.pdf is now available in your current directory`);
+function writeToFile(fileName, data) {
+    fs.writeFile(fileName, data, err => {
+        if (err) {
+          return console.log(err);
+        }
+      
+        console.log("Success! Your README.md file has been generated")
     });
 }
-const colors = {
-  green: {
-    wrapperBackground: "green",
-    headerBackground: "#C1C72C",
-    headerColor: "black",
-    photoBorderColor: "#black"
-  },
-  blue: {
-    wrapperBackground: "blue",
-    headerBackground: "#26175A",
-    headerColor: "white",
-    photoBorderColor: "#73448C"
-  },
-  pink: {
-    wrapperBackground: "pink",
-    headerBackground: "#FF8374",
-    headerColor: "white",
-    photoBorderColor: "#FEE24C"
-  },
-  red: {
-    wrapperBackground: "red",
-    headerBackground: "#870603",
-    headerColor: "white",
-    photoBorderColor: "white"
-  }
+
+const writeFileAsync = util.promisify(writeToFile);
+
+
+// Main function
+async function init() {
+    try {
+
+        // Prompt Inquirer questions
+        const userResponses = await inquirer.prompt(questions);
+        console.log("Your responses: ", userResponses);
+        console.log("Thank you for your responses! Fetching your GitHub data next...");
+    
+        // Call GitHub api for user info
+        const userInfo = await api.getUser(userResponses);
+        console.log("Your GitHub user info: ", userInfo);
+    
+        // Pass Inquirer userResponses and GitHub userInfo to generateMarkdown
+        console.log("Generating your README next...")
+        const markdown = generateMarkdown(userResponses, userInfo);
+        console.log(markdown);
+    
+        // Write markdown to file
+        await writeFileAsync('ExampleREADME.md', markdown);
+
+    } catch (error) {
+        console.log(error);
+    }
 };
-function generateHTML(info) {
-  return `<!DOCTYPE html>
-  <html lang="en">
-     <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css"/>
-        <link href="https://fonts.googleapis.com/css?family=BioRhyme|Cabin&display=swap" rel="stylesheet">
-        <title>HTML for the PDF</title>
-        <style>
-            @page {
-              margin: 0;
-            }
-           *,
-           *::after,
-           *::before {
-           box-sizing: border-box;
-           }
-           html, body {
-           padding: 0;
-           margin: 0;
-           }
-           html, body, .wrapper {
-           height: 100%;
-           }
-           .wrapper {
-           background-color: white;
-           padding-top: 100px;
-           }
-           body {
-           background-color: ${colors[info.color].wrapperBackground};
-           -webkit-print-color-adjust: exact !important;
-           font-family: 'Cabin', sans-serif;
-           }
-           main {
-           background-color: #E9EDEE;
-           height: auto;
-           padding-top: 30px;
-           }
-           h1, h2, h3, h4, h5, h6 {
-           font-family: 'BioRhyme', serif;
-           margin: 0;
-           }
-           h1 {
-           font-size: 3em;
-           }
-           h2 {
-           font-size: 2.5em;
-           }
-           h3 {
-           font-size: 2em;
-           }
-           h4 {
-           font-size: 1.5em;
-           }
-           h5 {
-           font-size: 1.3em;
-           }
-           h6 {
-           font-size: 1.2em;
-           }
-           .photo-header {
-           position: relative;
-           margin: 0 auto;
-           margin-bottom: -50px;
-           display: flex;
-           justify-content: center;
-           flex-wrap: wrap;
-           background-color: ${colors[info.color].headerBackground};
-           color: ${colors[info.color].headerColor};
-           padding: 10px;
-           width: 95%;
-           border-radius: 6px;
-           }
-           .photo-header img {
-           width: 200px;
-           height: 200px;
-           border-radius: 75%;
-           object-fit: cover;
-           margin-top: -75px;
-           border: 4px solid ${colors[info.color].photoBorderColor};
-           box-shadow: rgba(0, 0, 0, 0.3) 4px 1px 20px 4px;
-           }
-           .photo-header h1, .photo-header h2 {
-           width: 100%;
-           text-align: center;
-           }
-           .photo-header h1 {
-           margin-top: 10px;
-           }
-           .links-nav {
-           width: 100%;
-           text-align: center;
-           padding: 20px 0;
-           font-size: 1.5em;
-           }
-           .nav-link {
-           display: inline-block;
-           margin: 5px 10px;
-           }
-           .workExp-date {
-           font-style: italic;
-           font-size: .7em;
-           text-align: right;
-           margin-top: 10px;
-           }
-           .container {
-           padding: 50px;
-           padding-left: 100px;
-           padding-right: 100px;
-           }
-  
-           .row {
-             display: flex;
-             flex-wrap: wrap;
-             justify-content: space-between;
-             margin-top: 20px;
-             margin-bottom: 20px;
-           }
-  
-           .card {
-             padding: 20px;
-             border-radius: 6px;
-             background-color: ${colors[info.color].headerBackground};
-             color: ${colors[info.color].headerColor};
-             margin: 20px;
-           }
-           
-           .col {
-           flex: 1;
-           text-align: center;
-           }
-  
-           a, a:hover {
-           text-decoration: none;
-           color: inherit;
-           font-weight: bold;
-           }
-  
-           @media print { 
-            body { 
-              zoom: .75; 
-            } 
-           }
-        </style>
-     </head> 
-     <body>
-        <div class="wrapper">
-           <div class="photo-header">
-              <img src="${info.profilePic}" alt="Photo of ${info.name}" />
-              <h1>Hello!</h1>
-              <h2>
-              My name is ${info.name}!</h1>
-              <h5>${info.company ? `Currently @ ${info.company}` : ""}</h5>
-              <nav class="links-nav">
-                 ${
-    info.location
-      ? `<a class="nav-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/place/${
-      info.location
-      }"><i class="fas fa-location-arrow"></i> ${
-      info.location
-      }</a>`
-      : ""
-    }
-                 <a class="nav-link" target="_blank" rel="noopener noreferrer" href="${
-    info.profileUrl
-    }"><i class="fab fa-github-alt"></i> GitHub</a>
-                 ${
-    info.blog
-      ? `<a class="nav-link" target="_blank" rel="noopener noreferrer" href="${
-      info.blog
-      }"><i class="fas fa-rss"></i> Blog</a>`
-      : ""
-    }
-              </nav>
-           </div>
-           <main>
-              <div class="container">
-              <div class="row">
-                 <div class="col">
-                    <h3>${info.bio ? `${info.bio}` : ""}</h3>
-                 </div>
-                 </div>
-                 <div class="row">
-                 <div class="col">
-                    <div class="card">
-                      <h3>Public Repositories</h3>
-                      <h4>${info.repos}</h4>
-                    </div>
-                 </div>
-                  <div class="col">
-                  <div class="card">
-                    <h3>Followers</h3>
-                    <h4>${info.followers}</h4>
-                  </div>
-                 </div>
-                 </div>
-                 <div class="row">
-                 <div class="col">
-                 <div class="card">
-                    <h3>GitHub Stars</h3>
-                    <h4>${info.starCount}</h4>
-                    </div>
-                 </div>
-                  <div class="col">
-                  <div class="card">
-                    <h3>Following</h3>
-                    <h4>${info.following}</h4>
-                    </div>
-                 </div>
-                 </div>
-              </div>
-           </main>
-        </div>
-     </body>
-  </html>`;
-}
 
-  // module.exports = generateHTML;
-
-//      <body>
-//       <div class="jumbotron jumbotron-fluid">
-//         <div class="container">
-//           <h1 class="display-4">Hi! My name is ${info.name}</h1>
-//           <h2>A Little About Me: <span class="badge badge-secondary">${info.bio}</span></h2>
-//           <ul class="list-group">
-//             <li class="list-group-item">Location: ${info.location}</li>
-//             <li class="list-group-item">GitHub: ${info.profileUrl}</li>
-//             <li class="list-group-item">Blog: <a href="${info.blog}">${info.blog}</a></li>
-//           </ul>
-//           <img src='${info.profilePic}' height='200px' width='200px'>
-//         </div>
-//       </div>
-//      </body>    
-//     </html lang="en">
-//       `
-// }
+init();
