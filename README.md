@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # README.md Generator: Node.js and ES6+
 
 ## Description 
